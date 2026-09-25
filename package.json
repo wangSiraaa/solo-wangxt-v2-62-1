@@ -1,0 +1,15 @@
+{
+  "name": "wedding-seating-release",
+  "version": "1.0.0",
+  "private": true,
+  "description": "婚礼排座离线方案发布闭环：候选比较/应用/撤销 + 不可变快照发布、复核、回滚、导入导出",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node src/server/http.js",
+    "test": "node --test test/"
+  },
+  "license": "UNLICENSED"
+}

@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>婚礼排座 · 离线发布闭环</title>
+<style>
+  :root { --line:#e3e0da; --ink:#2b2620; --muted:#7a746b; --accent:#8a5a44; --danger:#b3402e; --ok:#2e7d4f; --warn:#a07412; --bg:#faf8f4; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:14px/1.5 -apple-system,"PingFang SC","Microsoft YaHei",sans-serif; color:var(--ink); background:var(--bg); }
+  header { padding:14px 22px; border-bottom:1px solid var(--line); background:#fff; display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
+  header h1 { font-size:17px; margin:0; }
+  .badge { font-size:12px; padding:2px 9px; border-radius:20px; border:1px solid var(--line); }
+  .badge.published { color:var(--ok); border-color:var(--ok); }
+  .badge.review { color:var(--warn); border-color:var(--warn); }
+  .badge.draft { color:var(--muted); }
+  .badge.superseded { color:var(--muted); }
+  .badge.abandoned { color:var(--danger); border-color:var(--danger); }
+  nav { display:flex; gap:2px; padding:0 16px; background:#fff; border-bottom:1px solid var(--line); }
+  nav button { border:0; background:none; padding:12px 16px; font-size:14px; cursor:pointer; color:var(--muted); border-bottom:2px solid transparent; }
+  nav button.active { color:var(--accent); border-bottom-color:var(--accent); font-weight:600; }
+  main { padding:20px 22px; max-width:1180px; margin:0 auto; }
+  section.tab { display:none; }
+  section.tab.active { display:block; }
+  .grid { display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+  .card { background:#fff; border:1px solid var(--line); border-radius:10px; padding:15px 16px; margin-bottom:16px; }
+  .card h2 { margin:0 0 10px; font-size:15px; }
+  table { border-collapse:collapse; width:100%; font-size:13px; }
+  th,td { border-bottom:1px solid var(--line); padding:6px 8px; text-align:left; vertical-align:top; }
+  th { color:var(--muted); font-weight:500; background:#fcfbf8; }
+  input,select,textarea,button.btn { font:inherit; padding:6px 9px; border:1px solid var(--line); border-radius:7px; background:#fff; }
+  button.btn, button.primary, button.danger, button.ghost { cursor:pointer; border-radius:7px; padding:6px 13px; }
+  button.primary { background:var(--accent); color:#fff; border:1px solid var(--accent); }
+  button.danger { color:var(--danger); border:1px solid var(--danger); background:#fff; }
+  button.ghost { color:var(--muted); border:1px solid var(--line); background:#fff; }
+  button:disabled { opacity:.45; cursor:not-allowed; }
+  .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:8px; }
+  .muted { color:var(--muted); }
+  .error-list { border-left:3px solid var(--danger); padding-left:10px; }
+  .error-list li { color:var(--danger); }
+  .warn-list { border-left:3px solid var(--warn); padding-left:10px; }
+  .warn-list li { color:var(--warn); }
+  .pill { display:inline-block; font-size:11px; padding:0 7px; border-radius:10px; background:#f0ece5; color:var(--muted); margin-left:5px; }
+  .pill.lock { background:#fbe9e6; color:var(--danger); }
+  .pill.child { background:#e8f1ec; color:var(--ok); }
+  .toast { position:fixed; right:18px; bottom:18px; max-width:420px; background:#2b2620; color:#fff; padding:10px 14px; border-radius:8px; font-size:13px; white-space:pre-wrap; display:none; z-index:99; }
+  .toast.err { background:var(--danger); }
+  .kv { font-size:12px; color:var(--muted); }
+  pre.diff { background:#fcfbf8; border:1px solid var(--line); border-radius:8px; padding:10px; max-height:340px; overflow:auto; font-size:12px; }
+  .card-item { border:1px dashed var(--line); border-radius:8px; padding:8px 10px; margin:6px 0; }
+  .card-item .t { font-weight:600; }
+  @media (max-width:860px){ .grid{grid-template-columns:1fr;} }
+</style>
+</head>
+<body>
+<header>
+  <h1>💍 婚礼排座 · 离线发布闭环</h1>
+  <span id="publishedBadge" class="badge draft">无已发布版本</span>
+  <span id="reviewBadge" class="badge draft" style="display:none"></span>
+  <span class="muted" id="dbInfo"></span>
+  <span style="flex:1"></span>
+  <button class="ghost" id="reloadBtn" title="模拟进程重启：从磁盘重新读取">刷新恢复</button>
+</header>
+<nav>
+  <button data-tab="data" class="active">宾客 / 关系 / 忌口</button>
+  <button data-tab="venue">场地 / 禁占区</button>
+  <button data-tab="draft">草稿排座</button>
+  <button data-tab="candidates">候选方案</button>
+  <button data-tab="release">复核与发布</button>
+  <button data-tab="versions">历史版本</button>
+</nav>
+<main>
+  <section class="tab active" id="tab-data">
+    <div class="grid">
+      <div class="card">
+        <h2>宾客与 RSVP</h2>
+        <div class="row">
+          <input id="gName" placeholder="姓名" />
+          <select id="gRsvp"><option value="pending">待确认</option><option value="accepted">已确认</option><option value="declined">已婉拒</option></select>
+          <label class="muted"><input type="checkbox" id="gChild" /> 儿童</label>
+          <button class="primary" id="addGuestBtn">添加宾客</button>
+        </div>
+        <table><thead><tr><th>姓名</th><th>RSVP</th><th>儿童</th><th></th></tr></thead><tbody id="guestRows"></tbody></table>
+      </div>
+      <div>
+        <div class="card">
+          <h2>关系（strength≥2 为希望同桌）</h2>
+          <div class="row">
+            <select id="r1"></select><select id="r2"></select>
+            <select id="rType"><option value="prefer">希望同桌</option><option value="avoid">避免同桌</option></select>
+            <input id="rStrength" type="number" min="1" max="3" value="2" style="width:60px" />
+            <button class="primary" id="addRelBtn">添加关系</button>
+          </div>
+          <table><thead><tr><th>宾客</th><th>类型</th><th>强度</th><th></th></tr></thead><tbody id="relRows"></tbody></table>
+        </div>
+        <div class="card">
+          <h2>忌口（冻结于发布快照）</h2>
+          <div class="row">
+            <select id="dGuest"></select><input id="dText" placeholder="如：坚果过敏 / 清真" />
+            <button class="primary" id="addDietBtn">添加忌口</button>
+          </div>
+          <table><thead><tr><th>宾客</th><th>忌口</th><th></th></tr></thead><tbody id="dietRows"></tbody></table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="tab" id="tab-venue">
+    <div class="grid">
+      <div class="card">
+        <h2>桌位与席位（席位 kind=child 即儿童椅占位）</h2>
+        <div class="row">
+          <input id="tName" placeholder="桌名，如：亲友桌" />
+          <button class="primary" id="addTableBtn">加桌</button>
+        </div>
+        <div id="tables"></div>
+      </div>
+      <div class="card">
+        <h2>场地禁占区</h2>
+        <div class="row">
+          <input id="bzName" placeholder="禁占区名称" />
+          <select id="bzTables" multiple size="3" style="min-width:160px"></select>
+          <button class="primary" id="addBzBtn">标记禁占区</button>
+        </div>
+        <p class="muted">被标记桌位上的任何排座都会触发硬约束，候选发布将失败。</p>
+        <table><thead><tr><th>名称</th><th>桌位</th><th></th></tr></thead><tbody id="bzRows"></tbody></table>
+      </div>
+    </div>
+  </section>
+
+  <section class="tab" id="tab-draft">
+    <div class="card">
+      <h2>手工换座（只改草稿，不触碰历史）
+        <button class="ghost" id="undoBtn">↩ 撤销（<span id="undoDepth">0</span>）</button>
+      </h2>
+      <div id="draftReview"></div>
+      <div id="tableMap"></div>
+    </div>
+    <div class="card">
+      <h2>桌卡内容</h2>
+      <div id="cardEditor"></div>
+    </div>
+  </section>
+
+  <section class="tab" id="tab-candidates">
+    <div class="card">
+      <h2>候选方案比较 / 应用 / 撤销</h2>
+      <div class="row">
+        <input id="candName" placeholder="候选名称（可选）" />
+        <button class="primary" id="genCandBtn">生成自动候选（贪心）</button>
+      </div>
+      <table><thead><tr><th>名称</th><th>变更</th><th>生成时间</th><th></th></tr></thead><tbody id="candRows"></tbody></table>
+      <div id="candDetail"></div>
+    </div>
+  </section>
+
+  <section class="tab" id="tab-release">
+    <div id="reviewPanel"></div>
+    <div class="card">
+      <h2>草稿相对当前已发布版的差异（约束复核）</h2>
+      <div id="draftDiff"></div>
+    </div>
+  </section>
+
+  <section class="tab" id="tab-versions">
+    <div class="card">
+      <h2>版本谱系（草稿 / 待复核 / 已发布 / 已替代 / 已撤销均留档）
+        <button class="ghost" id="exportAllBtn">导出全部</button>
+        <label class="ghost" style="cursor:pointer">导入版本文件
+          <input type="file" id="importFile" accept="application/json" hidden />
+        </label>
+      </h2>
+      <table><thead><tr><th>#</th><th>状态</th><th>标签</th><th>来源</th><th>血缘</th><th>时间</th><th>内容哈希</th><th>操作</th></tr></thead>
+      <tbody id="versionRows"></tbody></table>
+      <div id="versionDetail"></div>
+    </div>
+  </section>
+</main>
+<div class="toast" id="toast"></div>
+<script src="/app.js"></script>
+</body>
+</html>

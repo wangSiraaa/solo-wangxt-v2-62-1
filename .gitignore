@@ -23,3 +23,7 @@ venv/
 __pycache__/
 .pytest_cache/
 .DS_Store
+
+# 本地持久化数据与原子写临时文件
+data/
+*.json.tmp
