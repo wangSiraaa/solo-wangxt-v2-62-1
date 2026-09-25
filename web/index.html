@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>婚礼排座 · 离线发布闭环</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header>
+    <h1>💍 婚礼排座策划</h1>
+    <div id="current-banner" class="banner"></div>
+  </header>
+
+  <nav class="tabs">
+    <button data-tab="board" class="tab active">排座工作区</button>
+    <button data-tab="candidates" class="tab">候选方案</button>
+    <button data-tab="review" class="tab">复核与差异</button>
+    <button data-tab="versions" class="tab">版本发布与回滚</button>
+    <button data-tab="io" class="tab">导入 / 导出</button>
+  </nav>
+
+  <main>
+    <!-- TAB: board -->
+    <section id="tab-board" class="tabpanel active">
+      <div class="toolbar">
+        <button id="btn-add-guest">新增宾客</button>
+        <button id="btn-add-table">新增桌台</button>
+        <button id="btn-add-zone">新增禁占区</button>
+        <button id="btn-undo">撤销上一步</button>
+      </div>
+      <div id="draft-hint" class="hint"></div>
+      <div class="grid-2">
+        <div>
+          <h2>宾客与 RSVP / 忌口</h2>
+          <table id="guests-table" class="data"></table>
+        </div>
+        <div>
+          <h2>桌台席位</h2>
+          <div id="tables-board"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB: candidates -->
+    <section id="tab-candidates" class="tabpanel">
+      <div class="toolbar">
+        <button id="btn-cand-save">把当前工作区存为候选</button>
+        <button id="btn-cand-gen">自动生成候选（冲突避让）</button>
+      </div>
+      <div id="candidates-list" class="cards"></div>
+      <div id="candidate-compare"></div>
+    </section>
+
+    <!-- TAB: review -->
+    <section id="tab-review" class="tabpanel">
+      <div class="toolbar">
+        <button id="btn-review" class="primary">运行差异与约束复核</button>
+        <button id="btn-submit" class="primary">提交待复核</button>
+      </div>
+      <div id="review-status"></div>
+      <div class="grid-2">
+        <div>
+          <h2>硬约束 / 禁占区</h2>
+          <ul id="hard-list" class="violations hard"></ul>
+        </div>
+        <div>
+          <h2>软约束提醒</h2>
+          <ul id="soft-list" class="violations soft"></ul>
+        </div>
+      </div>
+      <h2>相对当前有效版本的差异</h2>
+      <div id="diff-view"></div>
+    </section>
+
+    <!-- TAB: versions -->
+    <section id="tab-versions" class="tabpanel">
+      <div class="toolbar">
+        <button id="btn-publish" class="primary big">发布不可变快照</button>
+        <button id="btn-discard">丢弃当前草稿</button>
+      </div>
+      <div id="publish-result"></div>
+      <h2>版本谱系（草稿 / 待复核 / 已发布 / 已替代）</h2>
+      <table id="versions-table" class="data"></table>
+      <div id="version-detail"></div>
+    </section>
+
+    <!-- TAB: io -->
+    <section id="tab-io" class="tabpanel">
+      <div class="toolbar">
+        <a class="btn" href="/api/export" download>导出全部版本（JSON）</a>
+      </div>
+      <div id="export-links"></div>
+      <h2>导入版本（单版本或版本包）</h2>
+      <input type="file" id="import-file" accept="application/json" />
+      <div id="import-result"></div>
+    </section>
+  </main>
+
+  <!-- generic modal -->
+  <div id="modal" class="modal hidden">
+    <div class="modal-box">
+      <h3 id="modal-title"></h3>
+      <div id="modal-body"></div>
+      <div class="modal-actions">
+        <button id="modal-cancel">取消</button>
+        <button id="modal-ok" class="primary">确定</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+  <script src="/app.js"></script>
+</body>
+</html>
